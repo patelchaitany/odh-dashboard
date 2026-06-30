@@ -31,7 +31,7 @@ import {
   getMcpCardIconConfig,
 } from '~/app/pages/mcpCatalog/components/McpCatalogCardIcons';
 import {
-  isMcpFeastDeploymentMode,
+  isFeastMcpServer,
   isMcpRemoteDeploymentMode,
 } from '~/app/pages/mcpCatalog/utils/mcpCatalogUtils';
 import McpRegisterButton from '~/odh/components/McpRegisterButton';
@@ -94,7 +94,7 @@ const McpServerDetailsPage: React.FC = () => {
                         </Label>
                       </FlexItem>
                     )}
-                    {isMcpFeastDeploymentMode(server.deploymentMode) && (
+                    {isFeastMcpServer(server) && (
                       <FlexItem>
                         <Label color="purple" data-testid="mcp-server-details-feast-label">
                           FEAST
@@ -133,7 +133,7 @@ const McpServerDetailsPage: React.FC = () => {
           ) : undefined
         }
         headerAction={
-          isMcpFeastDeploymentMode(server?.deploymentMode) ? (
+          isFeastMcpServer(server) ? (
             <McpRegisterButton />
           ) : server?.artifacts?.some((a) => a.uri) ? (
             <ExtensibleActions actions={actionExtensions} group={MCP_DEPLOY_ACTION_GROUP} />

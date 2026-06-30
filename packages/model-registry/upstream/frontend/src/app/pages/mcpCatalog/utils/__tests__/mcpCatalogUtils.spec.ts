@@ -2,9 +2,11 @@ import {
   getMcpServerPrimaryEndpoint,
   getSecurityIndicatorLabels,
   hasMcpFiltersApplied,
+  isFeastMcpServer,
   isMcpFeastDeploymentMode,
   isMcpRemoteDeploymentMode,
 } from '~/app/pages/mcpCatalog/utils/mcpCatalogUtils';
+import type { McpServer } from '~/app/mcpServerCatalogTypes';
 import type { McpCatalogFiltersState } from '~/app/pages/mcpCatalog/types/mcpCatalogFilterOptions';
 
 describe('isMcpRemoteDeploymentMode', () => {
@@ -27,6 +29,39 @@ describe('isMcpFeastDeploymentMode', () => {
     expect(isMcpFeastDeploymentMode('local')).toBe(false);
     expect(isMcpFeastDeploymentMode('remote')).toBe(false);
     expect(isMcpFeastDeploymentMode(undefined)).toBe(false);
+  });
+});
+
+describe('isFeastMcpServer', () => {
+  it('returns true when deploymentMode is feast', () => {
+    expect(isFeastMcpServer({ deploymentMode: 'feast' } as McpServer)).toBe(true);
+  });
+
+  it('returns true when tags include feast', () => {
+    expect(
+      isFeastMcpServer({ tags: ['feast', 'mlops'], deploymentMode: 'remote' } as McpServer),
+    ).toBe(true);
+  });
+
+  it('returns true when provider includes feast', () => {
+    expect(
+      isFeastMcpServer({ provider: 'Feast (LF AI & Data)', deploymentMode: 'remote' } as McpServer),
+    ).toBe(true);
+  });
+
+  it('returns false when no feast indicators', () => {
+    expect(
+      isFeastMcpServer({
+        tags: ['mlops'],
+        provider: 'Red Hat',
+        deploymentMode: 'remote',
+      } as McpServer),
+    ).toBe(false);
+  });
+
+  it('returns false for null or undefined', () => {
+    expect(isFeastMcpServer(null)).toBe(false);
+    expect(isFeastMcpServer(undefined)).toBe(false);
   });
 });
 

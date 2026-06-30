@@ -3,6 +3,7 @@ import { BACKEND_TO_FRONTEND_FILTER_KEY, MCP_FILTER_KEYS } from '~/app/pages/mcp
 import type {
   McpDeploymentMode,
   McpEndpoints,
+  McpServer,
   McpSecurityIndicator,
 } from '~/app/mcpServerCatalogTypes';
 import { hasFiltersApplied, stringFiltersToFilterQuery } from '~/app/shared/components/catalog';
@@ -10,6 +11,22 @@ import { hasFiltersApplied, stringFiltersToFilterQuery } from '~/app/shared/comp
 export const isMcpRemoteDeploymentMode = (mode?: McpDeploymentMode): boolean => mode === 'remote';
 
 export const isMcpFeastDeploymentMode = (mode?: McpDeploymentMode): boolean => mode === 'feast';
+
+export const isFeastMcpServer = (server?: McpServer | null): boolean => {
+  if (!server) {
+    return false;
+  }
+  if (isMcpFeastDeploymentMode(server.deploymentMode)) {
+    return true;
+  }
+  if (server.tags?.some((tag) => tag.toLowerCase() === 'feast')) {
+    return true;
+  }
+  if (server.provider?.toLowerCase().includes('feast')) {
+    return true;
+  }
+  return false;
+};
 
 export const getMcpServerPrimaryEndpoint = (
   endpoints?: McpEndpoints | null,
