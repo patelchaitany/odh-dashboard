@@ -1,0 +1,47 @@
+# Frontend-only rebuild - copies BFF from official image, rebuilds only the UI
+ARG MODULE_NAME=model-registry
+ARG UI_SOURCE_CODE=./packages/${MODULE_NAME}/upstream/frontend
+ARG NODE_BASE_IMAGE=registry.access.redhat.com/ubi9/nodejs-22:latest
+ARG OFFICIAL_IMAGE=registry.redhat.io/rhoai/odh-mod-arch-model-registry-rhel9@sha256:b3552976aa64846309aa32ff8e1285164ce5c7453c265a636d483cabcbab5794
+
+# UI build stage
+FROM ${NODE_BASE_IMAGE} AS ui-builder
+
+ARG UI_SOURCE_CODE
+ARG MODULE_NAME
+
+WORKDIR /usr/src/workspace
+
+COPY --chown=default:root package.json package-lock.json* ./
+COPY --chown=default:root frontend/package.json ./frontend/
+COPY --chown=default:root packages/plugin-core/ ./packages/plugin-core/
+COPY --chown=default:root packages/tsconfig/ ./packages/tsconfig/
+COPY --chown=default:root packages/k8s-core/ ./packages/k8s-core/
+COPY --chown=default:root packages/ui-core/ ./packages/ui-core/
+COPY --chown=default:root frontend/src/ ./frontend/src/
+
+COPY --chown=default:root ${UI_SOURCE_CODE} ./${UI_SOURCE_CODE}
+
+USER default
+
+RUN npm cache clean --force
+RUN npm ci --omit=optional --ignore-scripts
+
+WORKDIR /usr/src/workspace/${UI_SOURCE_CODE}
+RUN npm ci --omit=optional --ignore-scripts
+RUN npm run build:prod
+
+# Final stage - take BFF from official image, UI from our build
+FROM ${OFFICIAL_IMAGE} AS official
+
+FROM registry.access.redhat.com/ubi9-minimal:latest
+
+ARG UI_SOURCE_CODE
+
+WORKDIR /
+COPY --from=official /bff ./
+COPY --from=ui-builder /usr/src/workspace/${UI_SOURCE_CODE}/dist ./static/
+USER 65532:65532
+
+EXPOSE 8080
+ENTRYPOINT ["/bff"]
