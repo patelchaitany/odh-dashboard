@@ -493,6 +493,8 @@ func (app *App) Routes() http.Handler {
 	apiRouter.GET(constants.MCPToolsPath, app.AttachNamespace(app.MCPToolsHandler))
 	apiRouter.GET(constants.MCPStatusPath, app.AttachNamespace(app.MCPStatusHandler))
 	apiRouter.GET(constants.MCPServersListPath, app.AttachNamespace(app.MCPListHandler))
+	apiRouter.POST(constants.MCPServersRegisterPath, app.AttachNamespace(app.MCPRegisterHandler))
+	apiRouter.DELETE(constants.MCPServersUnregisterPath, app.AttachNamespace(app.MCPUnregisterHandler))
 
 	// External Vector Stores
 	apiRouter.GET(constants.VectorStoresAAPath, app.AttachNamespace(app.VectorStoresAAHandler))

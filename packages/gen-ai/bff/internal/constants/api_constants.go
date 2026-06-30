@@ -51,7 +51,9 @@ const (
 	MCPStatusPath = ApiPathPrefix + "/mcp/status"
 
 	// AI Assets (AAA) endpoints
-	MCPServersListPath = ApiPathPrefix + "/aaa/mcps"
+	MCPServersListPath       = ApiPathPrefix + "/aaa/mcps"
+	MCPServersRegisterPath   = ApiPathPrefix + "/aaa/mcps"
+	MCPServersUnregisterPath = ApiPathPrefix + "/aaa/mcps/:name"
 	ModelsAAPath       = ApiPathPrefix + "/aaa/models"
 	VectorStoresAAPath = ApiPathPrefix + "/aaa/vectorstores"
 

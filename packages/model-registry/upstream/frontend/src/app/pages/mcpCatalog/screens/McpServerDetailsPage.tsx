@@ -30,7 +30,11 @@ import {
   McpCardIconType,
   getMcpCardIconConfig,
 } from '~/app/pages/mcpCatalog/components/McpCatalogCardIcons';
-import { isMcpRemoteDeploymentMode } from '~/app/pages/mcpCatalog/utils/mcpCatalogUtils';
+import {
+  isMcpFeastDeploymentMode,
+  isMcpRemoteDeploymentMode,
+} from '~/app/pages/mcpCatalog/utils/mcpCatalogUtils';
+import McpRegisterButton from '~/odh/components/McpRegisterButton';
 import McpServerDetailsView from './McpServerDetailsView';
 
 const MCP_DEPLOY_ACTION_GROUP = 'mcp-catalog.server-deploy';
@@ -90,6 +94,13 @@ const McpServerDetailsPage: React.FC = () => {
                         </Label>
                       </FlexItem>
                     )}
+                    {isMcpFeastDeploymentMode(server.deploymentMode) && (
+                      <FlexItem>
+                        <Label color="purple" data-testid="mcp-server-details-feast-label">
+                          FEAST
+                        </Label>
+                      </FlexItem>
+                    )}
                   </Flex>
                 </StackItem>
                 {server.provider && (
@@ -122,7 +133,9 @@ const McpServerDetailsPage: React.FC = () => {
           ) : undefined
         }
         headerAction={
-          server?.artifacts?.some((a) => a.uri) ? (
+          isMcpFeastDeploymentMode(server?.deploymentMode) ? (
+            <McpRegisterButton />
+          ) : server?.artifacts?.some((a) => a.uri) ? (
             <ExtensibleActions actions={actionExtensions} group={MCP_DEPLOY_ACTION_GROUP} />
           ) : undefined
         }

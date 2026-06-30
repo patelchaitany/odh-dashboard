@@ -616,6 +616,72 @@ func (kc *TokenKubernetesClient) GetConfigMap(ctx context.Context, identity *int
 	return configMap, nil
 }
 
+// CreateOrUpdateMCPConfigMapEntry adds or updates a single entry in an MCP servers ConfigMap.
+// Creates the ConfigMap if it does not exist.
+func (kc *TokenKubernetesClient) CreateOrUpdateMCPConfigMapEntry(ctx context.Context, identity *integrations.RequestIdentity, namespace string, configMapName string, serverName string, configJSON string) error {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	configMap, err := kc.GetConfigMap(ctx, identity, namespace, configMapName)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("failed to get ConfigMap: %w", err)
+		}
+		newConfigMap := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      configMapName,
+				Namespace: namespace,
+			},
+			Data: map[string]string{
+				serverName: configJSON,
+			},
+		}
+		if err := kc.Client.Create(ctx, newConfigMap); err != nil {
+			kc.Logger.Error("failed to create MCP ConfigMap", "error", err, "namespace", namespace)
+			return fmt.Errorf("failed to create ConfigMap: %w", err)
+		}
+		kc.Logger.Info("created MCP ConfigMap with entry", "namespace", namespace, "configMap", configMapName, "server", serverName)
+		return nil
+	}
+
+	if configMap.Data == nil {
+		configMap.Data = map[string]string{}
+	}
+	configMap.Data[serverName] = configJSON
+	if err := kc.Client.Update(ctx, configMap); err != nil {
+		kc.Logger.Error("failed to update MCP ConfigMap", "error", err, "namespace", namespace)
+		return fmt.Errorf("failed to update ConfigMap: %w", err)
+	}
+	kc.Logger.Info("updated MCP ConfigMap entry", "namespace", namespace, "configMap", configMapName, "server", serverName)
+	return nil
+}
+
+// DeleteMCPConfigMapEntry removes a single entry from an MCP servers ConfigMap.
+func (kc *TokenKubernetesClient) DeleteMCPConfigMapEntry(ctx context.Context, identity *integrations.RequestIdentity, namespace string, configMapName string, serverName string) error {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	configMap, err := kc.GetConfigMap(ctx, identity, namespace, configMapName)
+	if err != nil {
+		return fmt.Errorf("failed to get ConfigMap: %w", err)
+	}
+
+	if configMap.Data == nil {
+		return fmt.Errorf("server %q not found in ConfigMap", serverName)
+	}
+	if _, exists := configMap.Data[serverName]; !exists {
+		return fmt.Errorf("server %q not found in ConfigMap", serverName)
+	}
+
+	delete(configMap.Data, serverName)
+	if err := kc.Client.Update(ctx, configMap); err != nil {
+		kc.Logger.Error("failed to update MCP ConfigMap after deletion", "error", err, "namespace", namespace)
+		return fmt.Errorf("failed to update ConfigMap: %w", err)
+	}
+	kc.Logger.Info("deleted MCP ConfigMap entry", "namespace", namespace, "configMap", configMapName, "server", serverName)
+	return nil
+}
+
 // ValidatedVectorStore pairs a VectorIOProvider with its associated RegisteredVectorStore
 // after they have been correlated by provider_id from the gen-ai-aa-vector-stores ConfigMap.
 type ValidatedVectorStore struct {

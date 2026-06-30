@@ -74,6 +74,96 @@ func (app *App) MCPListHandler(w http.ResponseWriter, r *http.Request, ps httpro
 	}
 }
 
+// MCPRegisterRequest represents the request body for registering an MCP server
+type MCPRegisterRequest struct {
+	Name        string `json:"name"`
+	URL         string `json:"url"`
+	Description string `json:"description,omitempty"`
+	Transport   string `json:"transport,omitempty"`
+}
+
+// MCPRegisterHandler handles POST /api/v1/aaa/mcps — registers an MCP server to the ConfigMap
+func (app *App) MCPRegisterHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	ctx := r.Context()
+
+	identity, k8sClient, err := app.setupMCPEndpoint(ctx)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	var req MCPRegisterRequest
+	if err := app.ReadJSON(w, r, &req); err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	if req.Name == "" {
+		app.badRequestResponse(w, r, fmt.Errorf("name is required"))
+		return
+	}
+	if req.URL == "" {
+		app.badRequestResponse(w, r, fmt.Errorf("url is required"))
+		return
+	}
+
+	config := models.MCPServerConfig{
+		URL:         req.URL,
+		Description: req.Description,
+		Transport:   req.Transport,
+	}
+
+	if err := app.repositories.MCPClient.RegisterMCPServer(
+		k8sClient, ctx, identity,
+		app.dashboardNamespace,
+		constants.MCPServerName,
+		req.Name,
+		config,
+	); err != nil {
+		app.handleConfigMapError(w, r, err, constants.MCPServerName, app.dashboardNamespace)
+		return
+	}
+
+	if err := app.WriteJSON(w, http.StatusCreated, map[string]string{
+		"message": fmt.Sprintf("MCP server '%s' registered successfully", req.Name),
+	}, nil); err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+// MCPUnregisterHandler handles DELETE /api/v1/aaa/mcps/:name — removes an MCP server from the ConfigMap
+func (app *App) MCPUnregisterHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	ctx := r.Context()
+
+	identity, k8sClient, err := app.setupMCPEndpoint(ctx)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	serverName := ps.ByName("name")
+	if serverName == "" {
+		app.badRequestResponse(w, r, fmt.Errorf("server name is required"))
+		return
+	}
+
+	if err := app.repositories.MCPClient.UnregisterMCPServer(
+		k8sClient, ctx, identity,
+		app.dashboardNamespace,
+		constants.MCPServerName,
+		serverName,
+	); err != nil {
+		app.handleConfigMapError(w, r, err, constants.MCPServerName, app.dashboardNamespace)
+		return
+	}
+
+	if err := app.WriteJSON(w, http.StatusOK, map[string]string{
+		"message": fmt.Sprintf("MCP server '%s' unregistered successfully", serverName),
+	}, nil); err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
 // handleConfigMapError handles specific ConfigMap-related errors with appropriate HTTP status codes
 func (app *App) handleConfigMapError(w http.ResponseWriter, r *http.Request, err error, configMapName, namespace string) {
 	errMsg := err.Error()

@@ -9,6 +9,8 @@ import { hasFiltersApplied, stringFiltersToFilterQuery } from '~/app/shared/comp
 
 export const isMcpRemoteDeploymentMode = (mode?: McpDeploymentMode): boolean => mode === 'remote';
 
+export const isMcpFeastDeploymentMode = (mode?: McpDeploymentMode): boolean => mode === 'feast';
+
 export const getMcpServerPrimaryEndpoint = (
   endpoints?: McpEndpoints | null,
 ): string | undefined => {

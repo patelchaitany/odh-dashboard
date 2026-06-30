@@ -21,7 +21,7 @@ export type MetadataProperty =
 
 export type McpCustomProperties = Record<string, MetadataProperty>;
 
-export type McpDeploymentMode = 'local' | 'remote';
+export type McpDeploymentMode = 'local' | 'remote' | 'feast';
 
 export type McpTransportType = 'stdio' | 'sse' | 'http';
 

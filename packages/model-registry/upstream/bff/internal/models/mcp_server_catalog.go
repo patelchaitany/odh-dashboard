@@ -7,6 +7,7 @@ type McpDeploymentMode string
 const (
 	McpDeploymentModeLocal  McpDeploymentMode = "local"
 	McpDeploymentModeRemote McpDeploymentMode = "remote"
+	McpDeploymentModeFeast  McpDeploymentMode = "feast"
 )
 
 type McpTransportType string

@@ -132,6 +132,57 @@ func (r *MCPClientRepository) GetMCPServersFromConfigWithMetadata(
 	return result, nil
 }
 
+// RegisterMCPServer adds an MCP server entry to the ConfigMap
+func (r *MCPClientRepository) RegisterMCPServer(
+	k8sClient kubernetes.KubernetesClientInterface,
+	ctx context.Context,
+	identity *integrations.RequestIdentity,
+	namespace string,
+	configMapName string,
+	serverName string,
+	config models.MCPServerConfig,
+) error {
+	if serverName == "" {
+		return fmt.Errorf("server name is required")
+	}
+	if config.URL == "" {
+		return fmt.Errorf("server URL is required")
+	}
+
+	configJSON, err := json.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal server config: %w", err)
+	}
+
+	if err := k8sClient.CreateOrUpdateMCPConfigMapEntry(ctx, identity, namespace, configMapName, serverName, string(configJSON)); err != nil {
+		return fmt.Errorf("failed to register MCP server: %w", err)
+	}
+
+	r.logger.Info("registered MCP server", "server", serverName, "namespace", namespace)
+	return nil
+}
+
+// UnregisterMCPServer removes an MCP server entry from the ConfigMap
+func (r *MCPClientRepository) UnregisterMCPServer(
+	k8sClient kubernetes.KubernetesClientInterface,
+	ctx context.Context,
+	identity *integrations.RequestIdentity,
+	namespace string,
+	configMapName string,
+	serverName string,
+) error {
+	if serverName == "" {
+		return fmt.Errorf("server name is required")
+	}
+
+	if err := k8sClient.DeleteMCPConfigMapEntry(ctx, identity, namespace, configMapName, serverName); err != nil {
+		return fmt.Errorf("failed to unregister MCP server: %w", err)
+	}
+
+	r.logger.Info("unregistered MCP server", "server", serverName, "namespace", namespace)
+	return nil
+}
+
 // CheckMCPServerStatus checks the connection status of an MCP server
 func (r *MCPClientRepository) CheckMCPServerStatus(
 	ctx context.Context,

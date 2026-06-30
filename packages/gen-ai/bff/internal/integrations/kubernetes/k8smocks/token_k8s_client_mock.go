@@ -847,3 +847,11 @@ func (m *TokenKubernetesClientMock) DeleteAgentProfile(ctx context.Context, name
 	// Use the embedded TokenKubernetesClient which will use m.Client (the fake client)
 	return m.TokenKubernetesClient.DeleteAgentProfile(ctx, namespace, profileID)
 }
+
+func (m *TokenKubernetesClientMock) CreateOrUpdateMCPConfigMapEntry(ctx context.Context, identity *integrations.RequestIdentity, namespace string, configMapName string, serverName string, configJSON string) error {
+	return m.TokenKubernetesClient.CreateOrUpdateMCPConfigMapEntry(ctx, identity, namespace, configMapName, serverName, configJSON)
+}
+
+func (m *TokenKubernetesClientMock) DeleteMCPConfigMapEntry(ctx context.Context, identity *integrations.RequestIdentity, namespace string, configMapName string, serverName string) error {
+	return m.TokenKubernetesClient.DeleteMCPConfigMapEntry(ctx, identity, namespace, configMapName, serverName)
+}

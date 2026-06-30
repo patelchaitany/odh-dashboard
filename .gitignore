@@ -44,6 +44,9 @@ CLAUDE.md
 # Playwright MCP
 .playwright-mcp/
 
+# Local run script
+scripts/run.sh
+
 # Temporary files
 tmp/
 

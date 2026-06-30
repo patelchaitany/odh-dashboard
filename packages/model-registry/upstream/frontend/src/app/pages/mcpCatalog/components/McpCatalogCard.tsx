@@ -17,6 +17,7 @@ import { LazyCodeRefComponent, useExtensions } from '@odh-dashboard/plugin-core'
 import type { McpServer } from '~/app/mcpServerCatalogTypes';
 import {
   getSecurityIndicatorLabels,
+  isMcpFeastDeploymentMode,
   isMcpRemoteDeploymentMode,
 } from '~/app/pages/mcpCatalog/utils/mcpCatalogUtils';
 import {
@@ -90,6 +91,13 @@ const McpCatalogCard: React.FC<McpCatalogCardProps> = React.memo(({ server }) =>
                   </FlexItem>
                 )}
               </Flex>
+            </FlexItem>
+          )}
+          {isMcpFeastDeploymentMode(server.deploymentMode) && (
+            <FlexItem>
+              <Label color="purple" data-testid={`mcp-catalog-card-feast-${serverId}`}>
+                FEAST
+              </Label>
             </FlexItem>
           )}
         </Flex>

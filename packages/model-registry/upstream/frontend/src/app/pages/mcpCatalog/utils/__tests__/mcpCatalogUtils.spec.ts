@@ -2,6 +2,7 @@ import {
   getMcpServerPrimaryEndpoint,
   getSecurityIndicatorLabels,
   hasMcpFiltersApplied,
+  isMcpFeastDeploymentMode,
   isMcpRemoteDeploymentMode,
 } from '~/app/pages/mcpCatalog/utils/mcpCatalogUtils';
 import type { McpCatalogFiltersState } from '~/app/pages/mcpCatalog/types/mcpCatalogFilterOptions';
@@ -14,6 +15,18 @@ describe('isMcpRemoteDeploymentMode', () => {
   it('returns false when mode is local or undefined', () => {
     expect(isMcpRemoteDeploymentMode('local')).toBe(false);
     expect(isMcpRemoteDeploymentMode(undefined)).toBe(false);
+  });
+});
+
+describe('isMcpFeastDeploymentMode', () => {
+  it('returns true when mode is feast', () => {
+    expect(isMcpFeastDeploymentMode('feast')).toBe(true);
+  });
+
+  it('returns false when mode is local, remote, or undefined', () => {
+    expect(isMcpFeastDeploymentMode('local')).toBe(false);
+    expect(isMcpFeastDeploymentMode('remote')).toBe(false);
+    expect(isMcpFeastDeploymentMode(undefined)).toBe(false);
   });
 });
 

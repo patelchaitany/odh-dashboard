@@ -43,6 +43,8 @@ type KubernetesClientInterface interface {
 
 	// ConfigMap operations
 	GetConfigMap(ctx context.Context, identity *integrations.RequestIdentity, namespace string, name string) (*corev1.ConfigMap, error)
+	CreateOrUpdateMCPConfigMapEntry(ctx context.Context, identity *integrations.RequestIdentity, namespace string, configMapName string, serverName string, configJSON string) error
+	DeleteMCPConfigMapEntry(ctx context.Context, identity *integrations.RequestIdentity, namespace string, configMapName string, serverName string) error
 
 	// External Models operations
 	GenerateProviderID(ctx context.Context, identity *integrations.RequestIdentity, namespace string) (string, error)
