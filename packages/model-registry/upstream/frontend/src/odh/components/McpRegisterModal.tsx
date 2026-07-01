@@ -170,8 +170,8 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
     [feastProjects, defaultMcpPort],
   );
 
-  const handleEnableMcp = React.useCallback(
-    async (type: 'registry' | 'featureServer') => {
+  const handleToggleMcp = React.useCallback(
+    async (type: 'registry' | 'featureServer', enable: boolean) => {
       if (!selectedProject) {
         return;
       }
@@ -186,10 +186,10 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
         };
 
         if (type === 'registry') {
-          body.registryMcpEnabled = true;
+          body.registryMcpEnabled = enable;
         } else {
           body.featureServerMcp = {
-            enabled: true,
+            enabled: enable,
             transport: fsMcpTransport,
             serverName: fsMcpServerName,
             serverVersion: fsMcpServerVersion,
@@ -405,13 +405,33 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
                     <FlexItem>Registry MCP:</FlexItem>
                     <FlexItem>
                       {selectedProject.mcpStatus.registryMcp.enabled ? (
-                        <Label
-                          color="green"
-                          icon={<CheckCircleIcon />}
-                          data-testid="mcp-registry-enabled"
+                        <Flex
+                          alignItems={{ default: 'alignItemsCenter' }}
+                          gap={{ default: 'gapSm' }}
                         >
-                          Enabled
-                        </Label>
+                          <FlexItem>
+                            <Label
+                              color="green"
+                              icon={<CheckCircleIcon />}
+                              data-testid="mcp-registry-enabled"
+                            >
+                              Enabled
+                            </Label>
+                          </FlexItem>
+                          <FlexItem>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              isDanger
+                              onClick={() => handleToggleMcp('registry', false)}
+                              isDisabled={isEnablingMcp}
+                              isLoading={isEnablingMcp}
+                              data-testid="mcp-registry-disable-button"
+                            >
+                              Disable
+                            </Button>
+                          </FlexItem>
+                        </Flex>
                       ) : (
                         <Flex
                           alignItems={{ default: 'alignItemsCenter' }}
@@ -430,7 +450,7 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
                             <Button
                               variant="link"
                               size="sm"
-                              onClick={() => handleEnableMcp('registry')}
+                              onClick={() => handleToggleMcp('registry', true)}
                               isDisabled={isEnablingMcp}
                               isLoading={isEnablingMcp}
                               data-testid="mcp-registry-enable-button"
@@ -450,13 +470,34 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
                     <FlexItem>Feature Server MCP:</FlexItem>
                     <FlexItem>
                       {selectedProject.mcpStatus.featureServerMcp.enabled ? (
-                        <Label
-                          color="green"
-                          icon={<CheckCircleIcon />}
-                          data-testid="mcp-fs-enabled"
+                        <Flex
+                          alignItems={{ default: 'alignItemsCenter' }}
+                          gap={{ default: 'gapSm' }}
                         >
-                          Enabled ({selectedProject.mcpStatus.featureServerMcp.transport || 'sse'})
-                        </Label>
+                          <FlexItem>
+                            <Label
+                              color="green"
+                              icon={<CheckCircleIcon />}
+                              data-testid="mcp-fs-enabled"
+                            >
+                              Enabled (
+                              {selectedProject.mcpStatus.featureServerMcp.transport || 'sse'})
+                            </Label>
+                          </FlexItem>
+                          <FlexItem>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              isDanger
+                              onClick={() => handleToggleMcp('featureServer', false)}
+                              isDisabled={isEnablingMcp}
+                              isLoading={isEnablingMcp}
+                              data-testid="mcp-fs-disable-button"
+                            >
+                              Disable
+                            </Button>
+                          </FlexItem>
+                        </Flex>
                       ) : (
                         <Label color="red" icon={<TimesCircleIcon />} data-testid="mcp-fs-disabled">
                           Disabled
@@ -520,7 +561,7 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
                       <StackItem>
                         <Button
                           variant="secondary"
-                          onClick={() => handleEnableMcp('featureServer')}
+                          onClick={() => handleToggleMcp('featureServer', true)}
                           isDisabled={isEnablingMcp}
                           isLoading={isEnablingMcp}
                           data-testid="mcp-fs-enable-button"
