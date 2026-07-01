@@ -212,7 +212,6 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
           name: displayName,
           url: serviceUrl,
           description,
-          namespace: selectedProject.namespace,
         }),
       });
 

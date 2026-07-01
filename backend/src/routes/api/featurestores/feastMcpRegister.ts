@@ -12,7 +12,6 @@ interface RegisterMcpRequest {
   url: string;
   description?: string;
   transport?: string;
-  namespace: string;
 }
 
 export default async (fastify: KubeFastifyInstance): Promise<void> => {
@@ -20,14 +19,11 @@ export default async (fastify: KubeFastifyInstance): Promise<void> => {
     '/mcp-register',
     async (req: OauthFastifyRequest<{ Body: RegisterMcpRequest }>, reply: FastifyReply) => {
       try {
-        const { name, url, description, transport, namespace } = req.body;
+        const { name, url, description, transport } = req.body;
+        const namespace = fastify.kube.namespace;
 
-        if (!name || !url || !namespace) {
-          throw createCustomError(
-            'Missing required fields',
-            'name, url, and namespace are required',
-            400,
-          );
+        if (!name || !url) {
+          throw createCustomError('Missing required fields', 'name and url are required', 400);
         }
 
         const kubeHeaders = (await getDirectCallOptions(fastify, req, '')).headers as Record<
@@ -109,14 +105,10 @@ export default async (fastify: KubeFastifyInstance): Promise<void> => {
     ) => {
       try {
         const { serverName } = req.params;
-        const namespace = (req.query as Record<string, string>).namespace;
+        const namespace = fastify.kube.namespace;
 
-        if (!serverName || !namespace) {
-          throw createCustomError(
-            'Missing required fields',
-            'serverName and namespace are required',
-            400,
-          );
+        if (!serverName) {
+          throw createCustomError('Missing required fields', 'serverName is required', 400);
         }
 
         const kubeHeaders = (await getDirectCallOptions(fastify, req, '')).headers as Record<
