@@ -22,9 +22,24 @@ export interface FeatureStoreCRD {
       registry?: {
         local?: {
           server?: {
+            restAPI?: boolean;
             tls?: {
               disable?: boolean;
             };
+            mcp?: {
+              enabled?: boolean;
+            };
+          };
+        };
+      };
+      onlineStore?: {
+        server?: Record<string, unknown>;
+        serving?: {
+          mcp?: {
+            enabled?: boolean;
+            serverName?: string;
+            serverVersion?: string;
+            transport?: string;
           };
         };
       };
@@ -85,10 +100,10 @@ export function handleError(fastify: KubeFastifyInstance, error: unknown, contex
 /**
  * Build a CustomObjectsApi that authenticates as the requesting user rather than the dashboard service-account. This is required so that K8s RBAC is enforced per-user.
  */
-function getUserScopedCustomObjectsApi(
+export function getUserScopedCustomObjectsApi(
   fastify: KubeFastifyInstance,
   kubeHeaders: Record<string, string>,
-) {
+): { api: k8s.CustomObjectsApi; opts: { headers: Record<string, never> } } {
   const baseKc = fastify.kube.config;
   const cluster = baseKc.getCurrentCluster();
 

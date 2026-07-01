@@ -5,8 +5,11 @@ import {
   Form,
   FormGroup,
   FormHelperText,
+  Flex,
+  FlexItem,
   HelperText,
   HelperTextItem,
+  Label,
   Modal,
   ModalBody,
   ModalFooter,
@@ -21,6 +24,7 @@ import {
   StackItem,
   TextInput,
 } from '@patternfly/react-core';
+import { CheckCircleIcon, TimesCircleIcon } from '@patternfly/react-icons';
 import { DashboardModalFooter } from 'mod-arch-shared';
 
 type RouteInfo = {
@@ -37,11 +41,22 @@ type ServiceInfo = {
   isDefaultMcp: boolean;
 };
 
+type McpStatus = {
+  registryMcp: { enabled: boolean };
+  featureServerMcp: {
+    enabled: boolean;
+    transport?: string;
+    serverName?: string;
+    serverVersion?: string;
+  };
+};
+
 type FeastProject = {
   crdName: string;
   namespace: string;
   feastProject: string;
   registryReady: boolean;
+  mcpStatus: McpStatus;
   routes: RouteInfo[];
   services: ServiceInfo[];
 };
@@ -60,9 +75,16 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
   const [selectedProject, setSelectedProject] = React.useState<FeastProject>();
   const [projectSelectOpen, setProjectSelectOpen] = React.useState(false);
 
+  // MCP enable form state
+  const [isEnablingMcp, setIsEnablingMcp] = React.useState(false);
+  const [fsMcpTransport, setFsMcpTransport] = React.useState('sse');
+  const [fsMcpTransportOpen, setFsMcpTransportOpen] = React.useState(false);
+  const [fsMcpServerName, setFsMcpServerName] = React.useState('feast-mcp-server');
+  const [fsMcpServerVersion, setFsMcpServerVersion] = React.useState('1.0.0');
+
+  // Route state
   const [selectedRoute, setSelectedRoute] = React.useState<RouteInfo>();
   const [routeSelectOpen, setRouteSelectOpen] = React.useState(false);
-
   const [showCreateRoute, setShowCreateRoute] = React.useState(false);
   const [newRouteName, setNewRouteName] = React.useState('');
   const [selectedService, setSelectedService] = React.useState<string>('');
@@ -70,25 +92,16 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
   const [newRoutePort, setNewRoutePort] = React.useState(6567);
   const [isCreatingRoute, setIsCreatingRoute] = React.useState(false);
 
+  // Registration state
   const [serviceUrl, setServiceUrl] = React.useState('');
   const [displayName, setDisplayName] = React.useState('');
   const [description, setDescription] = React.useState('');
-
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<Error>();
 
-  React.useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
+  const fetchProjects = React.useCallback(() => {
     setLoaded(false);
     setLoadError(undefined);
-    setSelectedProject(undefined);
-    setSelectedRoute(undefined);
-    setServiceUrl('');
-    setDisplayName('');
-    setDescription('');
-    setShowCreateRoute(false);
 
     fetch('/api/featurestores/mcp-servers')
       .then((res) => {
@@ -102,11 +115,35 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
         setDefaultMcpPort(data.defaultMcpPort);
         setNewRoutePort(data.defaultMcpPort);
         setLoaded(true);
+
+        if (selectedProject) {
+          const updated = data.feastProjects.find(
+            (p) =>
+              p.namespace === selectedProject.namespace && p.crdName === selectedProject.crdName,
+          );
+          if (updated) {
+            setSelectedProject(updated);
+          }
+        }
       })
       .catch((err) => {
         setLoadError(err instanceof Error ? err.message : String(err));
         setLoaded(true);
       });
+  }, [selectedProject]);
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    setSelectedProject(undefined);
+    setSelectedRoute(undefined);
+    setServiceUrl('');
+    setDisplayName('');
+    setDescription('');
+    setShowCreateRoute(false);
+    fetchProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const handleProjectSelect = React.useCallback(
@@ -131,6 +168,53 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
       setProjectSelectOpen(false);
     },
     [feastProjects, defaultMcpPort],
+  );
+
+  const handleEnableMcp = React.useCallback(
+    async (type: 'registry' | 'featureServer') => {
+      if (!selectedProject) {
+        return;
+      }
+
+      setIsEnablingMcp(true);
+      setSubmitError(undefined);
+
+      try {
+        const body: Record<string, unknown> = {
+          namespace: selectedProject.namespace,
+          crdName: selectedProject.crdName,
+        };
+
+        if (type === 'registry') {
+          body.registryMcpEnabled = true;
+        } else {
+          body.featureServerMcp = {
+            enabled: true,
+            transport: fsMcpTransport,
+            serverName: fsMcpServerName,
+            serverVersion: fsMcpServerVersion,
+          };
+        }
+
+        const res = await fetch('/api/featurestores/mcp-enable', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+          const errorData: { message?: string } = await res.json().catch(() => ({}));
+          throw new Error(errorData.message || `Failed to enable MCP: ${res.statusText}`);
+        }
+
+        fetchProjects();
+      } catch (e) {
+        setSubmitError(e instanceof Error ? e : new Error('Failed to enable MCP'));
+      } finally {
+        setIsEnablingMcp(false);
+      }
+    },
+    [selectedProject, fsMcpTransport, fsMcpServerName, fsMcpServerVersion, fetchProjects],
   );
 
   const handleRouteSelect = React.useCallback(
@@ -186,15 +270,16 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
         throw new Error(errorData.message || `Failed to create route: ${res.statusText}`);
       }
 
-      const data: { routeUrl: string; routeName: string } = await res.json();
+      const data: { routeUrl: string } = await res.json();
       setServiceUrl(data.routeUrl);
       setShowCreateRoute(false);
+      fetchProjects();
     } catch (e) {
       setSubmitError(e instanceof Error ? e : new Error('Failed to create route'));
     } finally {
       setIsCreatingRoute(false);
     }
-  }, [selectedProject, newRouteName, selectedService, newRoutePort]);
+  }, [selectedProject, newRouteName, selectedService, newRoutePort, fetchProjects]);
 
   const handleRegister = React.useCallback(async () => {
     if (!selectedProject || !displayName || !serviceUrl) {
@@ -212,6 +297,7 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
           name: displayName,
           url: serviceUrl,
           description,
+          namespace: selectedProject.namespace,
         }),
       });
 
@@ -295,7 +381,9 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
                       <SelectOption
                         key={key}
                         value={key}
-                        description={`Namespace: ${project.namespace} | ${project.registryReady ? 'Ready' : 'Not ready'} | ${project.routes.length} routes`}
+                        description={`Namespace: ${project.namespace} | ${
+                          project.registryReady ? 'Ready' : 'Not ready'
+                        }`}
                         isDisabled={!project.registryReady}
                       >
                         {project.feastProject}
@@ -307,7 +395,147 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
             </Select>
           </FormGroup>
 
-          {/* Route selector — shown after project is selected */}
+          {/* MCP Status section */}
+          {selectedProject && (
+            <FormGroup label="MCP status" fieldId="mcp-status">
+              <Stack hasGutter>
+                {/* Registry MCP */}
+                <StackItem>
+                  <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+                    <FlexItem>Registry MCP:</FlexItem>
+                    <FlexItem>
+                      {selectedProject.mcpStatus.registryMcp.enabled ? (
+                        <Label
+                          color="green"
+                          icon={<CheckCircleIcon />}
+                          data-testid="mcp-registry-enabled"
+                        >
+                          Enabled
+                        </Label>
+                      ) : (
+                        <Flex
+                          alignItems={{ default: 'alignItemsCenter' }}
+                          gap={{ default: 'gapSm' }}
+                        >
+                          <FlexItem>
+                            <Label
+                              color="red"
+                              icon={<TimesCircleIcon />}
+                              data-testid="mcp-registry-disabled"
+                            >
+                              Disabled
+                            </Label>
+                          </FlexItem>
+                          <FlexItem>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              onClick={() => handleEnableMcp('registry')}
+                              isDisabled={isEnablingMcp}
+                              isLoading={isEnablingMcp}
+                              data-testid="mcp-registry-enable-button"
+                            >
+                              Enable
+                            </Button>
+                          </FlexItem>
+                        </Flex>
+                      )}
+                    </FlexItem>
+                  </Flex>
+                </StackItem>
+
+                {/* Feature Server MCP */}
+                <StackItem>
+                  <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+                    <FlexItem>Feature Server MCP:</FlexItem>
+                    <FlexItem>
+                      {selectedProject.mcpStatus.featureServerMcp.enabled ? (
+                        <Label
+                          color="green"
+                          icon={<CheckCircleIcon />}
+                          data-testid="mcp-fs-enabled"
+                        >
+                          Enabled ({selectedProject.mcpStatus.featureServerMcp.transport || 'sse'})
+                        </Label>
+                      ) : (
+                        <Label color="red" icon={<TimesCircleIcon />} data-testid="mcp-fs-disabled">
+                          Disabled
+                        </Label>
+                      )}
+                    </FlexItem>
+                  </Flex>
+
+                  {/* Feature Server MCP enable form */}
+                  {!selectedProject.mcpStatus.featureServerMcp.enabled && (
+                    <Stack hasGutter className="pf-v6-u-mt-sm pf-v6-u-ml-lg">
+                      <StackItem>
+                        <FormGroup label="Transport" fieldId="mcp-fs-transport">
+                          <Select
+                            id="mcp-fs-transport"
+                            isOpen={fsMcpTransportOpen}
+                            selected={fsMcpTransport}
+                            onSelect={(_e, value) => {
+                              setFsMcpTransport(String(value));
+                              setFsMcpTransportOpen(false);
+                            }}
+                            onOpenChange={setFsMcpTransportOpen}
+                            toggle={(toggleRef) => (
+                              <MenuToggle
+                                ref={toggleRef}
+                                onClick={() => setFsMcpTransportOpen(!fsMcpTransportOpen)}
+                                isExpanded={fsMcpTransportOpen}
+                                data-testid="mcp-fs-transport-toggle"
+                              >
+                                {fsMcpTransport}
+                              </MenuToggle>
+                            )}
+                          >
+                            <SelectList>
+                              <SelectOption value="sse">sse</SelectOption>
+                              <SelectOption value="http">http</SelectOption>
+                            </SelectList>
+                          </Select>
+                        </FormGroup>
+                      </StackItem>
+                      <StackItem>
+                        <FormGroup label="Server name" fieldId="mcp-fs-server-name">
+                          <TextInput
+                            id="mcp-fs-server-name"
+                            value={fsMcpServerName}
+                            onChange={(_e, value) => setFsMcpServerName(value)}
+                            data-testid="mcp-fs-server-name-input"
+                          />
+                        </FormGroup>
+                      </StackItem>
+                      <StackItem>
+                        <FormGroup label="Server version" fieldId="mcp-fs-server-version">
+                          <TextInput
+                            id="mcp-fs-server-version"
+                            value={fsMcpServerVersion}
+                            onChange={(_e, value) => setFsMcpServerVersion(value)}
+                            data-testid="mcp-fs-server-version-input"
+                          />
+                        </FormGroup>
+                      </StackItem>
+                      <StackItem>
+                        <Button
+                          variant="secondary"
+                          onClick={() => handleEnableMcp('featureServer')}
+                          isDisabled={isEnablingMcp}
+                          isLoading={isEnablingMcp}
+                          data-testid="mcp-fs-enable-button"
+                        >
+                          Enable Feature Server MCP
+                        </Button>
+                      </StackItem>
+                    </Stack>
+                  )}
+                </StackItem>
+              </Stack>
+            </FormGroup>
+          )}
+
+          {/* Route selector */}
           {selectedProject && (
             <>
               <FormGroup label="Route" isRequired fieldId="mcp-register-route">
@@ -341,17 +569,13 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
                         {route.name}
                       </SelectOption>
                     ))}
-                    <SelectOption
-                      value="__create_new__"
-                      description="Create a new reencrypt route for a Feast service"
-                    >
+                    <SelectOption value="__create_new__" description="Create a new reencrypt route">
                       + Create new route
                     </SelectOption>
                   </SelectList>
                 </Select>
               </FormGroup>
 
-              {/* Create new route form */}
               {showCreateRoute && (
                 <Stack hasGutter className="pf-v6-u-ml-lg pf-v6-u-mb-md">
                   <StackItem>
@@ -359,9 +583,8 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
                       <TextInput
                         id="mcp-register-new-route-name"
                         value={newRouteName}
-                        onChange={(_event, value) => setNewRouteName(value)}
+                        onChange={(_e, value) => setNewRouteName(value)}
                         placeholder="e.g. feast-mcp-online"
-                        data-testid="mcp-register-new-route-name"
                       />
                     </FormGroup>
                   </StackItem>
@@ -379,7 +602,6 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
                             onClick={() => setServiceSelectOpen(!serviceSelectOpen)}
                             isExpanded={serviceSelectOpen}
                             isFullWidth
-                            data-testid="mcp-register-service-toggle"
                           >
                             {selectedService || 'Select a service'}
                           </MenuToggle>
@@ -390,7 +612,9 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
                             <SelectOption
                               key={svc.name}
                               value={svc.name}
-                              description={`Ports: ${svc.ports.map((p) => p.port).join(', ')}${svc.isDefaultMcp ? ' (default MCP)' : ''}`}
+                              description={`Ports: ${svc.ports.map((p) => p.port).join(', ')}${
+                                svc.isDefaultMcp ? ' (default MCP)' : ''
+                              }`}
                             >
                               {svc.name}
                             </SelectOption>
@@ -417,7 +641,6 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
                         }}
                         min={1}
                         max={65535}
-                        data-testid="mcp-register-port"
                       />
                       <FormHelperText>
                         <HelperText>
@@ -436,7 +659,6 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
                         !newRouteName || !selectedService || !newRoutePort || isCreatingRoute
                       }
                       isLoading={isCreatingRoute}
-                      data-testid="mcp-register-create-route-button"
                     >
                       Create route
                     </Button>
@@ -444,12 +666,11 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
                 </Stack>
               )}
 
-              {/* Service URL */}
               <FormGroup label="Service URL" isRequired fieldId="mcp-register-url">
                 <TextInput
                   id="mcp-register-url"
                   value={serviceUrl}
-                  onChange={(_event, value) => setServiceUrl(value)}
+                  onChange={(_e, value) => setServiceUrl(value)}
                   data-testid="mcp-register-url-input"
                 />
                 <FormHelperText>
@@ -466,7 +687,7 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
                 <TextInput
                   id="mcp-register-name"
                   value={displayName}
-                  onChange={(_event, value) => setDisplayName(value)}
+                  onChange={(_e, value) => setDisplayName(value)}
                   data-testid="mcp-register-name-input"
                 />
               </FormGroup>
@@ -475,7 +696,7 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
                 <TextInput
                   id="mcp-register-description"
                   value={description}
-                  onChange={(_event, value) => setDescription(value)}
+                  onChange={(_e, value) => setDescription(value)}
                   data-testid="mcp-register-description-input"
                 />
               </FormGroup>

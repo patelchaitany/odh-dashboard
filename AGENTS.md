@@ -1,10 +1,8 @@
-# AGENTS.md - ODH Dashboard
+# CLAUDE.md
 
-This document provides guidance for AI agents working on the Open Data Hub (ODH) Dashboard monorepo.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Repository Overview
-
-ODH Dashboard is a **monorepo** containing the main dashboard application and multiple feature packages. It provides the web UI for Red Hat OpenShift AI (RHOAI) and Open Data Hub.
+ODH Dashboard is a **monorepo** providing the web UI for Red Hat OpenShift AI (RHOAI) and Open Data Hub.
 
 ## Repository Structure
 
@@ -61,22 +59,53 @@ odh-dashboard/
 # Install dependencies
 npm install
 
-# Start development server (main dashboard)
+# Start development server (backend + frontend host; does NOT start BFF sidecars)
 npm run dev
 
-# Build all packages
+# Build host app only (backend + frontend)
 npm run build
 
-# Run tests
+# Build a specific MF remote package (e.g., model-registry)
+cd packages/model-registry/upstream/frontend && npm run build
+
+# Run a MF remote dev server alongside the host
+cd packages/<name> && make dev-start-federated
+
+# Run all tests
 npm run test
 
-# Lint all packages
+# Run a single Jest test file
+cd frontend && npx jest --testPathPattern="path/to/file.spec.ts"
+cd backend && npx jest --testPathPattern="path/to/file.spec.ts"
+
+# Run unit tests across all packages (via Turbo)
+npm run test:unit
+
+# Lint
 npm run lint
 npm run lint:fix
 
-# Type checking
+# Type checking (all packages via Turbo)
 npm run type-check
+
+# Type check a single package
+cd packages/model-registry/upstream/frontend && npx tsc --noEmit
+cd backend && npx tsc --noEmit
+
+# Validate Module Federation port assignments
+npm run validate:ports
+
+# Build a Go BFF
+cd packages/<name>/bff && go build ./...
 ```
+
+## What `npm run dev` Starts
+
+`npm run dev` starts the **Fastify backend** and **Webpack frontend dev server** in parallel. It connects to your cluster via `.env.local` config (see `.env.local.example`). It does **not** start the Go BFF sidecars (gen-ai, model-registry, maas, etc.) — those either run on the cluster or locally via `make dev-start` from each package's `bff/` directory.
+
+## Build Architecture
+
+The root `npm run build` only builds the **host app** (`frontend/` + `backend/`). Module Federation remote packages (gen-ai, model-registry, etc.) have their own webpack builds and are served by separate sidecar containers in production. To test changes in a remote package on a cluster, you must build and deploy that package's container image separately (see `packages/<name>/Dockerfile.workspace`).
 
 ## Documentation
 
