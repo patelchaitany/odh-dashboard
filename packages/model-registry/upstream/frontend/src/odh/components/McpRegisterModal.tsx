@@ -217,6 +217,23 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
     [selectedProject, fsMcpTransport, fsMcpServerName, fsMcpServerVersion, fetchProjects],
   );
 
+  const getMcpEndpointPath = React.useCallback((): string => {
+    const transport = selectedProject?.mcpStatus.featureServerMcp.transport;
+    if (transport === 'sse') {
+      return '/sse';
+    }
+    return '/mcp';
+  }, [selectedProject]);
+
+  const appendMcpPath = React.useCallback(
+    (baseUrl: string): string => {
+      const url = baseUrl.replace(/\/+$/, '');
+      const path = getMcpEndpointPath();
+      return `${url}${path}`;
+    },
+    [getMcpEndpointPath],
+  );
+
   const handleRouteSelect = React.useCallback(
     (_event: React.MouseEvent | undefined, value: string | number | undefined) => {
       if (value === '__create_new__') {
@@ -229,12 +246,12 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
       const route = selectedProject?.routes.find((r) => r.name === value);
       if (route) {
         setSelectedRoute(route);
-        setServiceUrl(route.url);
+        setServiceUrl(appendMcpPath(route.url));
         setShowCreateRoute(false);
       }
       setRouteSelectOpen(false);
     },
-    [selectedProject],
+    [selectedProject, appendMcpPath],
   );
 
   const handleServiceSelect = React.useCallback(
@@ -271,7 +288,7 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
       }
 
       const data: { routeUrl: string } = await res.json();
-      setServiceUrl(data.routeUrl);
+      setServiceUrl(appendMcpPath(data.routeUrl));
       setShowCreateRoute(false);
       fetchProjects();
     } catch (e) {
@@ -279,7 +296,7 @@ const McpRegisterModal: React.FC<McpRegisterModalProps> = ({ isOpen = true, onCl
     } finally {
       setIsCreatingRoute(false);
     }
-  }, [selectedProject, newRouteName, selectedService, newRoutePort, fetchProjects]);
+  }, [selectedProject, newRouteName, selectedService, newRoutePort, fetchProjects, appendMcpPath]);
 
   const handleRegister = React.useCallback(async () => {
     if (!selectedProject || !displayName || !serviceUrl) {
