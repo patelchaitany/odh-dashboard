@@ -34,9 +34,9 @@ import {
   isFeastMcpServer,
   isMcpRemoteDeploymentMode,
 } from '~/app/pages/mcpCatalog/utils/mcpCatalogUtils';
-import McpRegisterButton from '~/odh/components/McpRegisterButton';
 import McpServerDetailsView from './McpServerDetailsView';
 
+const McpRegisterButton = React.lazy(() => import('~/odh/components/McpRegisterButton'));
 const MCP_DEPLOY_ACTION_GROUP = 'mcp-catalog.server-deploy';
 
 const McpServerDetailsPage: React.FC = () => {
@@ -134,7 +134,9 @@ const McpServerDetailsPage: React.FC = () => {
         }
         headerAction={
           isFeastMcpServer(server) ? (
-            <McpRegisterButton />
+            <React.Suspense fallback={null}>
+              <McpRegisterButton />
+            </React.Suspense>
           ) : server?.artifacts?.some((a) => a.uri) ? (
             <ExtensibleActions actions={actionExtensions} group={MCP_DEPLOY_ACTION_GROUP} />
           ) : undefined
