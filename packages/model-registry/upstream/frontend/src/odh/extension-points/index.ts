@@ -8,7 +8,6 @@ export * from './catalog-settings-url';
 export * from './registry-settings-url';
 export * from './feature-flag-overrides';
 export * from './mcp-catalog-settings-url';
-export * from './mcp-deploy';
 export * from './mcp-register';
 export * from './namespace-selector';
 export * from './projects-bridge';
